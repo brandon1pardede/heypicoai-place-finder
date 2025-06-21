@@ -35,10 +35,23 @@ const ollama = new Ollama({
 const SYSTEM_PROMPT = `You are a helpful assistant that provides information about places. 
 When asked about places, extract the location and type of place from the query.
 The user's current location will be provided - use this to make the search more relevant.
+
+For the type field, use one of these categories:
+- Restaurant/Cafe
+- Shopping
+- Entertainment
+- Outdoor/Park
+- Cultural
+- Nightlife
+- Health/Fitness
+- Education
+- Services
+- Other
+
 Respond in JSON format with the following structure:
 {
   "searchQuery": "the search term for Google Places API - include 'near {location}' if no specific location is mentioned",
-  "type": "the type of place (restaurant, park, etc.)",
+  "type": "one of the categories listed above that best matches the query",
   "description": "a brief description of what the user is looking for"
 }`;
 

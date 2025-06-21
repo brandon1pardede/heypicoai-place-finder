@@ -9,6 +9,82 @@ import {
 } from "@react-google-maps/api";
 import { Place, SearchResult, Location } from "@/app/types";
 
+const useLoadingPulse = () => {
+  const [scale, setScale] = useState(10);
+
+  useEffect(() => {
+    let frame: number;
+    const animate = () => {
+      setScale((s) => {
+        const newScale = s + Math.sin(Date.now() / 200) * 0.3;
+        return newScale;
+      });
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return scale;
+};
+
+const LoadingSpinner = () => (
+  <div
+    className="animate-spin inline-block w-4 h-4 border-[2px] border-current border-t-transparent text-white rounded-full"
+    role="status"
+    aria-label="loading"
+  >
+    <span className="sr-only">Loading...</span>
+  </div>
+);
+
+const LoadingSkeleton = () => (
+  <>
+    <div className="p-4 bg-gray-100 rounded-lg mb-4 shadow-sm animate-pulse">
+      <div className="h-6 w-32 bg-gray-300 rounded mb-2"></div>
+      <div className="h-4 w-64 bg-gray-300 rounded mb-2"></div>
+      <div className="h-4 w-48 bg-gray-300 rounded"></div>
+    </div>
+    <div className="space-y-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="p-4 border rounded-lg shadow-sm animate-pulse">
+          <div className="h-5 w-48 bg-gray-300 rounded mb-2"></div>
+          <div className="h-4 w-64 bg-gray-300 rounded mb-3"></div>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-4 w-16 bg-gray-300 rounded mb-1"></div>
+              <div className="h-4 w-24 bg-gray-300 rounded"></div>
+            </div>
+            <div className="h-4 w-32 bg-gray-300 rounded"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </>
+);
+
+const LoadingMapMarker = ({
+  position,
+}: {
+  position: google.maps.LatLngLiteral;
+}) => {
+  const scale = useLoadingPulse();
+
+  return (
+    <Marker
+      position={position}
+      icon={{
+        path: google.maps.SymbolPath.CIRCLE,
+        scale,
+        fillColor: "#60A5FA",
+        fillOpacity: 0.4,
+        strokeColor: "#2563EB",
+        strokeWeight: 2,
+      }}
+    />
+  );
+};
+
 const containerStyle = {
   width: "100%",
   height: "600px",
@@ -146,7 +222,7 @@ export default function Home() {
               disabled={loading || !query.trim()}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700 transition-colors"
             >
-              {loading ? "Searching..." : "Search"}
+              {loading ? <LoadingSpinner /> : "Search"}
             </button>
           </div>
 
@@ -187,13 +263,26 @@ export default function Home() {
                     )}
 
                     {/* Place markers */}
-                    {searchResult?.places.map((place) => (
-                      <Marker
-                        key={place.place_id}
-                        position={place.location}
-                        onClick={() => handleMarkerClick(place)}
-                      />
-                    ))}
+                    {loading
+                      ? // Show loading markers in a circular pattern around the center
+                        Array.from({ length: 5 }).map((_, i) => {
+                          const angle = (i * 2 * Math.PI) / 5;
+                          const lat = mapCenter.lat + 0.005 * Math.cos(angle);
+                          const lng = mapCenter.lng + 0.005 * Math.sin(angle);
+                          return (
+                            <LoadingMapMarker
+                              key={`loading-${i}`}
+                              position={{ lat, lng }}
+                            />
+                          );
+                        })
+                      : searchResult?.places.map((place) => (
+                          <Marker
+                            key={place.place_id}
+                            position={place.location}
+                            onClick={() => handleMarkerClick(place)}
+                          />
+                        ))}
 
                     {selectedPlace && (
                       <InfoWindow
@@ -223,7 +312,8 @@ export default function Home() {
           </div>
 
           <div>
-            {searchResult && (
+            {loading && <LoadingSkeleton />}
+            {searchResult && !loading && (
               <>
                 <div className="p-4 bg-gray-100 rounded-lg mb-4 shadow-sm">
                   <h2 className="text-xl font-semibold mb-2">Search Results</h2>
