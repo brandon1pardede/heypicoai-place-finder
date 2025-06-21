@@ -1,6 +1,6 @@
-# Local LLM Place Finder
+# AI-Powered Place Finder
 
-This application uses a local LLM (Ollama) to process natural language queries about places and displays the results on Google Maps.
+This application uses a local LLM (Ollama) to process natural language queries about places and displays the results using Google Maps and Places API. It provides intelligent location-based recommendations based on user queries and their current location.
 
 ## Prerequisites
 
@@ -9,7 +9,10 @@ This application uses a local LLM (Ollama) to process natural language queries a
    ```bash
    ollama pull mistral
    ```
-3. [Create a Google Cloud Project](https://console.cloud.google.com/project) and enable the Maps JavaScript API
+3. [Create a Google Cloud Project](https://console.cloud.google.com/project) and enable the following APIs:
+   - Maps JavaScript API
+   - Places API
+   - Geocoding API
 4. Get your Google Maps API key from the Google Cloud Console
 
 ## Setup
@@ -32,26 +35,61 @@ This application uses a local LLM (Ollama) to process natural language queries a
 
 ## Features
 
-- Natural language processing for place queries using local LLM
-- Google Maps integration for displaying locations
-- Real-time search results with place descriptions
-- Responsive design
+- Natural language processing for place queries using local LLM (Mistral)
+- Intelligent categorization of place types (Restaurant/Cafe, Shopping, Entertainment, etc.)
+- Real-time geolocation-based search using user's current location
+- Integration with Google Maps and Places API for accurate location data
+- Interactive map with:
+  - User location marker
+  - Place markers with info windows
+  - Automatic map centering on selected locations
+- Detailed place information including:
+  - Distance from user's location
+  - Ratings
+  - Address
+  - Place types
+- Responsive design with loading states and error handling
+- Search results sorted by distance from user's location
 
 ## Architecture
 
-- Frontend: Next.js with React and TypeScript
+### Frontend
+
+- Next.js 14 with React and TypeScript
+- @react-google-maps/api for Maps integration
+- Tailwind CSS for styling
+- Client-side geolocation
+
+### Backend
+
+- Next.js API routes
 - Local LLM: Ollama running Mistral model
-- Maps Integration: Google Maps JavaScript API
-- Styling: Tailwind CSS
+- Integration with Google APIs:
+  - Places API for location search
+  - Geocoding API for location context
+  - Maps JavaScript API for visualization
+
+### Data Flow
+
+1. User enters natural language query
+2. Query is processed by Mistral LLM to extract search intent and place type
+3. Structured search is performed using Google Places API
+4. Results are displayed on the map and in the sidebar
+5. Real-time distance calculations and sorting
 
 ## Security Considerations
 
 - Google Maps API key is properly secured using environment variables
-- Rate limiting is handled by Google Maps API quotas
+- Rate limiting handled by Google APIs quotas
 - Local LLM processing ensures privacy of user queries
+- Error handling and input validation implemented
+- Secure geolocation handling with user permission
 
-## Notes
+## Development
 
-- The application currently uses mock coordinates for demonstration purposes
-- In a production environment, you would want to integrate the Google Places API for accurate location data
-- The local LLM requires the Ollama service to be running on your machine
+The project uses TypeScript for type safety and includes:
+
+- Custom type definitions for places and API responses
+- Structured logging system
+- Error handling and loading states
+- Responsive UI components
