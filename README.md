@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Local LLM Place Finder
 
-## Getting Started
+This application uses a local LLM (Ollama) to process natural language queries about places and displays the results on Google Maps.
 
-First, run the development server:
+## Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. Install [Ollama](https://ollama.ai/download) on your system
+2. Install the Mistral model using Ollama:
+   ```bash
+   ollama pull mistral
+   ```
+3. [Create a Google Cloud Project](https://console.cloud.google.com/project) and enable the Maps JavaScript API
+4. Get your Google Maps API key from the Google Cloud Console
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file in the root directory with the following content:
+   ```
+   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+   OLLAMA_HOST=http://localhost:11434
+   ```
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Features
 
-## Learn More
+- Natural language processing for place queries using local LLM
+- Google Maps integration for displaying locations
+- Real-time search results with place descriptions
+- Responsive design
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Frontend: Next.js with React and TypeScript
+- Local LLM: Ollama running Mistral model
+- Maps Integration: Google Maps JavaScript API
+- Styling: Tailwind CSS
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Security Considerations
 
-## Deploy on Vercel
+- Google Maps API key is properly secured using environment variables
+- Rate limiting is handled by Google Maps API quotas
+- Local LLM processing ensures privacy of user queries
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Notes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- The application currently uses mock coordinates for demonstration purposes
+- In a production environment, you would want to integrate the Google Places API for accurate location data
+- The local LLM requires the Ollama service to be running on your machine

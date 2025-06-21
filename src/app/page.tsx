@@ -1,103 +1,282 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import {
+  GoogleMap,
+  LoadScript,
+  Marker,
+  InfoWindow,
+} from "@react-google-maps/api";
+import { Place, SearchResult, Location } from "@/app/types";
+
+const containerStyle = {
+  width: "100%",
+  height: "600px",
+};
+
+// Default to San Francisco if geolocation fails
+const defaultCenter = {
+  lat: 37.7749,
+  lng: -122.4194,
+};
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [query, setQuery] = useState("");
+  const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
+  const [mapCenter, setMapCenter] = useState(defaultCenter);
+  const [userLocation, setUserLocation] = useState<Location | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  useEffect(() => {
+    // Get user's location when component mounts
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setUserLocation(location);
+          setMapCenter(location);
+          setLocationLoading(false);
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          setLocationLoading(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0,
+        }
+      );
+    } else {
+      setLocationLoading(false);
+    }
+  }, []);
+
+  const handleSearch = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      setSelectedPlace(null);
+
+      const response = await fetch("/api/places", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query,
+          userLocation: userLocation || defaultCenter,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to search for places");
+      }
+
+      const data = await response.json();
+      setSearchResult(data);
+
+      // Automatically select the first result if available
+      if (data.places && data.places.length > 0) {
+        const firstPlace = data.places[0];
+        setSelectedPlace(firstPlace);
+        setMapCenter(firstPlace.location);
+      }
+    } catch (err) {
+      setError("Failed to search for places. Please try again.");
+      console.error("Search error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMarkerClick = (place: Place) => {
+    setSelectedPlace(place);
+    setMapCenter(place.location);
+  };
+
+  const formatRating = (rating?: number) => {
+    if (!rating) return "No rating";
+    return `${rating.toFixed(1)} ⭐`;
+  };
+
+  const calculateDistance = (place: Place) => {
+    if (!userLocation) return null;
+
+    const R = 6371; // Earth's radius in km
+    const dLat = ((place.location.lat - userLocation.lat) * Math.PI) / 180;
+    const dLon = ((place.location.lng - userLocation.lng) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((userLocation.lat * Math.PI) / 180) *
+        Math.cos((place.location.lat * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    return distance < 1
+      ? `${(distance * 1000).toFixed(0)}m away`
+      : `${distance.toFixed(1)}km away`;
+  };
+
+  return (
+    <main className="min-h-screen">
+      <div className="max-w-6xl mx-auto p-8">
+        <h1 className="text-3xl font-bold mb-8">Place Finder</h1>
+
+        <div className="mb-8">
+          <div className="flex gap-4">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Ask about places to go, eat, or visit near me..."
+              className="flex-1 p-3 border rounded-lg"
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <button
+              onClick={handleSearch}
+              disabled={loading || !query.trim()}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700 transition-colors"
+            >
+              {loading ? "Searching..." : "Search"}
+            </button>
+          </div>
+
+          {locationLoading && (
+            <p className="mt-4 text-blue-600">Getting your location...</p>
+          )}
+          {error && <p className="mt-4 text-red-600">{error}</p>}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <div className="sticky top-8">
+              <div className="rounded-lg overflow-hidden shadow-lg">
+                <LoadScript
+                  googleMapsApiKey={
+                    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+                  }
+                >
+                  <GoogleMap
+                    mapContainerStyle={containerStyle}
+                    center={mapCenter}
+                    zoom={14}
+                  >
+                    {/* User location marker */}
+                    {userLocation && (
+                      <Marker
+                        position={userLocation}
+                        icon={{
+                          path: google.maps.SymbolPath.CIRCLE,
+                          scale: 7,
+                          fillColor: "#4285F4",
+                          fillOpacity: 1,
+                          strokeColor: "#ffffff",
+                          strokeWeight: 2,
+                        }}
+                        title="Your location"
+                      />
+                    )}
+
+                    {/* Place markers */}
+                    {searchResult?.places.map((place) => (
+                      <Marker
+                        key={place.place_id}
+                        position={place.location}
+                        onClick={() => handleMarkerClick(place)}
+                      />
+                    ))}
+
+                    {selectedPlace && (
+                      <InfoWindow
+                        position={selectedPlace.location}
+                        onCloseClick={() => setSelectedPlace(null)}
+                      >
+                        <div className="p-2">
+                          <h3 className="font-semibold">
+                            {selectedPlace.name}
+                          </h3>
+                          <p className="text-sm">{selectedPlace.address}</p>
+                          <p className="text-sm mt-1">
+                            {formatRating(selectedPlace.rating)}
+                          </p>
+                          {userLocation && (
+                            <p className="text-sm text-blue-600">
+                              {calculateDistance(selectedPlace)}
+                            </p>
+                          )}
+                        </div>
+                      </InfoWindow>
+                    )}
+                  </GoogleMap>
+                </LoadScript>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            {searchResult && (
+              <>
+                <div className="p-4 bg-gray-100 rounded-lg mb-4 shadow-sm">
+                  <h2 className="text-xl font-semibold mb-2">Search Results</h2>
+                  <p>
+                    <strong>Looking for:</strong> {searchResult.description}
+                  </p>
+                  <p>
+                    <strong>Type:</strong> {searchResult.type}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {searchResult.places.map((place) => (
+                    <div
+                      key={place.place_id}
+                      className={`p-4 border rounded-lg hover:border-blue-500 cursor-pointer transition-colors shadow-sm hover:shadow-md ${
+                        selectedPlace?.place_id === place.place_id
+                          ? "border-blue-500 bg-blue-50"
+                          : ""
+                      }`}
+                      onClick={() => handleMarkerClick(place)}
+                    >
+                      <h3 className="font-semibold">{place.name}</h3>
+                      <p className="text-sm text-gray-600">{place.address}</p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <div>
+                          <span className="text-sm block">
+                            {formatRating(place.rating)}
+                          </span>
+                          {userLocation && (
+                            <span className="text-sm text-blue-600 block">
+                              {calculateDistance(place)}
+                            </span>
+                          )}
+                        </div>
+                        <a
+                          href={`https://www.google.com/maps/place/?q=place_id:${place.place_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          View on Google Maps →
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }
